@@ -5,29 +5,29 @@ import (
 	"testing"
 
 	"github.com/gregwebs/go-concurrent"
-	"github.com/stretchr/testify/assert"
+	"github.com/shoenig/test/must"
 )
 
 func TestConcurrent(t *testing.T) {
 	var err []error
 	workNone := func(_ int) error { return nil }
 	err = concurrent.GoN(0, workNone)
-	assert.Nil(t, err)
+	must.Nil(t, err)
 	err = concurrent.GoN(2, workNone)
-	assert.Nil(t, err)
+	must.Nil(t, err)
 
 	tracked := make([]bool, 10)
 	workTracked := func(i int) error { tracked[i] = true; return nil }
 	err = concurrent.GoN(0, workTracked)
-	assert.Nil(t, err)
-	assert.False(t, tracked[0])
+	must.Nil(t, err)
+	must.False(t, tracked[0])
 
 	tracked = make([]bool, 10)
 	err = concurrent.GoN(2, workTracked)
-	assert.Nil(t, err)
-	assert.False(t, tracked[2])
-	assert.True(t, tracked[1])
-	assert.True(t, tracked[0])
+	must.Nil(t, err)
+	must.False(t, tracked[2])
+	must.True(t, tracked[1])
+	must.True(t, tracked[0])
 }
 
 func TestChannelMerge(t *testing.T) {
@@ -37,8 +37,8 @@ func TestChannelMerge(t *testing.T) {
 		close(c1)
 		close(c2)
 		err, ok := concurrent.TryRecv(concurrent.ChannelMerge(c1, c2))
-		assert.False(t, ok)
-		assert.Nil(t, err)
+		must.False(t, ok)
+		must.Nil(t, err)
 	}
 
 	{
@@ -52,10 +52,10 @@ func TestChannelMerge(t *testing.T) {
 		}()
 		merged := concurrent.ChannelMerge(c1, c2)
 		_, ok := <-merged
-		assert.True(t, ok)
+		must.True(t, ok)
 		_, ok = <-merged
-		assert.True(t, ok)
+		must.True(t, ok)
 		_, ok = <-merged
-		assert.False(t, ok)
+		must.False(t, ok)
 	}
 }
