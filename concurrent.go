@@ -76,3 +76,39 @@ func TrySend[T any](c chan<- T, obj T) bool {
 		return false
 	}
 }
+
+// UnboundedChan transfers its contents into an unbounded slice
+// Close the channel and retrieve the slice data with Drain()
+type UnboundedChan[T any] struct {
+	chanT  chan T
+	sliceT []T
+	done   chan struct{}
+}
+
+func (uc UnboundedChan[T]) Send(x T) {
+	uc.chanT <- x
+}
+
+func (uc UnboundedChan[T]) Drain() []T {
+	close(uc.chanT)
+	<-uc.done
+	return uc.sliceT
+}
+
+func NewUnboundedChan[T any]() UnboundedChan[T] {
+	chanSize := 10
+	uc := UnboundedChan[T]{
+		chanT:  make(chan T, chanSize),
+		sliceT: make([]T, 0, chanSize),
+		done:   make(chan struct{}),
+	}
+	go func() {
+		defer func() {
+			uc.done <- struct{}{}
+		}()
+		for x := range uc.chanT {
+			uc.sliceT = append(uc.sliceT, x)
+		}
+	}()
+	return uc
+}
