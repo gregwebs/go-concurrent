@@ -8,10 +8,10 @@ import (
 )
 
 // Concurrent spawns n go routines each of which runs the given function.
-// a panic in the given function is recovered and converted to an error
+// A panic in the given function is recovered and converted to an error.
 // errors are returned as []error, a slice of errors
-// If there are no errors, the slice will be nil
-// To combine the errors as a single error, use errors.Join
+// If there are no errors, the slice will be nil.
+// To combine the errors as a single error, use errors.Join.
 func GoN(n int, fn func(int) error) []error {
 	errs := make([]error, n)
 	var wg sync.WaitGroup
@@ -26,6 +26,19 @@ func GoN(n int, fn func(int) error) []error {
 	}
 	wg.Wait()
 	return errors.Joins(errs...)
+}
+
+// GoEach runs a go routine for each item in an Array.
+// It is a convenient generic wrapper around GoN.
+// A panic in the given function is recovered and converted to an error.
+// errors are returned as []error, a slice of errors.
+// If there are no errors, the slice will be nil.
+// To combine the errors as a single error, use errors.Join.
+func GoEach[T any](all []T, fn func(T) error) []error {
+	return GoN(len(all), func(n int) error {
+		item := all[n]
+		return fn(item)
+	})
 }
 
 // Merge multiple channels together.

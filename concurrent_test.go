@@ -9,7 +9,7 @@ import (
 	"github.com/shoenig/test/must"
 )
 
-func TestConcurrent(t *testing.T) {
+func TestGoN(t *testing.T) {
 	var err []error
 	workNone := func(_ int) error { return nil }
 	err = concurrent.GoN(0, workNone)
@@ -25,6 +25,27 @@ func TestConcurrent(t *testing.T) {
 
 	tracked = make([]bool, 10)
 	err = concurrent.GoN(2, workTracked)
+	must.Nil(t, err)
+	must.False(t, tracked[2])
+	must.True(t, tracked[1])
+	must.True(t, tracked[0])
+}
+
+func TestGoEach(t *testing.T) {
+	var err []error
+	tracked := make([]bool, 10)
+	workNone := func(_ bool) error { return nil }
+	err = concurrent.GoEach(tracked, workNone)
+	must.Nil(t, err)
+
+	workTracked := func(_ bool) error { tracked[0] = true; return nil }
+	err = concurrent.GoEach(tracked, workTracked)
+	must.Nil(t, err)
+	must.False(t, tracked[1])
+	must.True(t, tracked[0])
+
+	workTracked = func(_ bool) error { tracked[1] = true; return nil }
+	err = concurrent.GoEach(tracked, workTracked)
 	must.Nil(t, err)
 	must.False(t, tracked[2])
 	must.True(t, tracked[1])
