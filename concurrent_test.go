@@ -31,6 +31,29 @@ func TestGoN(t *testing.T) {
 	must.True(t, tracked[0])
 }
 
+func TestGoNSerials(t *testing.T) {
+	var err []error
+	gr := concurrent.GoSerial()
+	workNone := func(_ int) error { return nil }
+	err = gr.GoN(0, workNone)
+	must.Nil(t, err)
+	err = gr.GoN(2, workNone)
+	must.Nil(t, err)
+
+	tracked := make([]bool, 10)
+	workTracked := func(i int) error { tracked[i] = true; return nil }
+	err = gr.GoN(0, workTracked)
+	must.Nil(t, err)
+	must.False(t, tracked[0])
+
+	tracked = make([]bool, 10)
+	err = gr.GoN(2, workTracked)
+	must.Nil(t, err)
+	must.False(t, tracked[2])
+	must.True(t, tracked[1])
+	must.True(t, tracked[0])
+}
+
 func TestGoEach(t *testing.T) {
 	var err []error
 	tracked := make([]bool, 10)
@@ -46,6 +69,28 @@ func TestGoEach(t *testing.T) {
 
 	workTracked = func(_ bool) error { tracked[1] = true; return nil }
 	err = concurrent.GoEach(tracked, workTracked)
+	must.Nil(t, err)
+	must.False(t, tracked[2])
+	must.True(t, tracked[1])
+	must.True(t, tracked[0])
+}
+
+func TestGoEachSerial(t *testing.T) {
+	var err []error
+	tracked := make([]bool, 10)
+	workNone := func(_ bool) error { return nil }
+	gr := concurrent.GoSerial()
+	err = concurrent.GoEachRoutine(tracked, workNone)(gr)
+	must.Nil(t, err)
+
+	workTracked := func(_ bool) error { tracked[0] = true; return nil }
+	err = concurrent.GoEachRoutine(tracked, workTracked)(gr)
+	must.Nil(t, err)
+	must.False(t, tracked[1])
+	must.True(t, tracked[0])
+
+	workTracked = func(_ bool) error { tracked[1] = true; return nil }
+	err = concurrent.GoEachRoutine(tracked, workTracked)(gr)
 	must.Nil(t, err)
 	must.False(t, tracked[2])
 	must.True(t, tracked[1])
