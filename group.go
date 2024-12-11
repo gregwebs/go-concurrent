@@ -52,10 +52,11 @@ type token struct{}
 // * panics in the functions that are ran are recovered and converted to errors.
 // Must be constructed with NewGroupContext
 type group struct {
-	errChan UnboundedChan[error]
-	wg      sync.WaitGroup
-	cancel  func(error)
-	sem     chan token
+	errChan   UnboundedChan[error]
+	wg        sync.WaitGroup
+	cancel    func(error)
+	sem       chan token
+	goRoutine GoRoutine
 }
 
 func (g *group) do(fn func() error) {
@@ -94,9 +95,14 @@ func (g *group) Wait() []error {
 func NewGroupContext(ctx context.Context) (*group, context.Context) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	return &group{
-		cancel:  cancel,
-		errChan: NewUnboundedChan[error](),
+		cancel:    cancel,
+		errChan:   NewUnboundedChan[error](),
+		goRoutine: GoConcurrent(),
 	}, ctx
+}
+
+func (g *group) SetGoRoutine(gr GoRoutine) {
+	g.goRoutine = gr
 }
 
 func (g *group) Go(fn func() error) {

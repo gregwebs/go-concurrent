@@ -13,19 +13,7 @@ import (
 // If there are no errors, the slice will be nil.
 // To combine the errors as a single error, use errors.Join.
 func GoN(n int, fn func(int) error) []error {
-	errs := make([]error, n)
-	var wg sync.WaitGroup
-	for i := 0; i < n; i++ {
-		i := i
-		wg.Add(1)
-		go recovery.GoHandler(func(err error) { errs[i] = err }, func() error {
-			defer wg.Done()
-			errs[i] = fn(i)
-			return nil
-		})
-	}
-	wg.Wait()
-	return errors.Joins(errs...)
+	return GoConcurrent().GoN(n, fn)
 }
 
 // GoEach runs a go routine for each item in an Array.
@@ -39,6 +27,48 @@ func GoEach[T any](all []T, fn func(T) error) []error {
 		item := all[n]
 		return fn(item)
 	})
+}
+
+func GoConcurrent() GoRoutine {
+	return GoRoutine(func(work func()) { go work() })
+}
+
+func GoSerial() GoRoutine {
+	return GoRoutine(func(work func()) { work() })
+}
+
+// GoRoutine allows for inserting hooks before launching Go routines
+// GoSerial() allows for running in serial for debugging
+type GoRoutine func(func())
+
+func (gr GoRoutine) GoN(n int, fn func(int) error) []error {
+	errs := make([]error, n)
+	var wg sync.WaitGroup
+	for i := 0; i < n; i++ {
+		i := i
+		wg.Add(1)
+		gr(func() {
+			recovery.GoHandler(func(err error) { errs[i] = err }, func() error {
+				defer wg.Done()
+				errs[i] = fn(i)
+				return nil
+			})
+		})
+	}
+	wg.Wait()
+	return errors.Joins(errs...)
+}
+
+// GoEach but with a configurable GoRoutine.
+// GoEach uses generics, so it cannot be called directly as a method.
+// Instead, apply the GoEach arguments first, than apply the GoRoutine to the resulting function.
+func GoEachRoutine[T any](all []T, work func(T) error) func(gr GoRoutine) []error {
+	return func(gr GoRoutine) []error {
+		return gr.GoN(len(all), func(n int) error {
+			item := all[n]
+			return work(item)
+		})
+	}
 }
 
 // Merge multiple channels together.
