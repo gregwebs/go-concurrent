@@ -7,21 +7,23 @@ import (
 	"github.com/gregwebs/go-recovery"
 )
 
-// Concurrent spawns n go routines each of which runs the given function.
-// A panic in the given function is recovered and converted to an error.
-// errors are returned as []error, a slice of errors
-// If there are no errors, the slice will be nil.
-// To combine the errors as a single error, use errors.Join.
+// GoN runs a function in parallel multiple times using n goroutines.
+//
+// It recovers any panics that occur during the execution of the function
+// and returns them as a slice of errors. If no errors occurred, nil will be returned.
+//
+// Use [errors.Join] to combine the individual errors into a single error.
 func GoN(n int, fn func(int) error) []error {
 	return GoConcurrent().GoN(n, fn)
 }
 
 // GoEach runs a go routine for each item in an Array.
-// It is a convenient generic wrapper around GoN.
-// A panic in the given function is recovered and converted to an error.
-// errors are returned as []error, a slice of errors.
-// If there are no errors, the slice will be nil.
-// To combine the errors as a single error, use errors.Join.
+// It is a convenient generic wrapper around [GoN].
+//
+// It recovers any panics that occur during the execution of the function
+// and returns them as a slice of errors. If no errors occurred, nil will be returned.
+//
+// Use [errors.Join] to combine the individual errors into a single error.
 func GoEach[T any](all []T, fn func(T) error) []error {
 	return GoN(len(all), func(n int) error {
 		item := all[n]
@@ -29,18 +31,23 @@ func GoEach[T any](all []T, fn func(T) error) []error {
 	})
 }
 
+// [GoConcurrent] is the default implementation for launching a routine.
+// It just uses the `go` keyword.
 func GoConcurrent() GoRoutine {
 	return GoRoutine(func(work func()) { go work() })
 }
 
+// [GoSerial] allows for running in serial for debugging
 func GoSerial() GoRoutine {
 	return GoRoutine(func(work func()) { work() })
 }
 
 // GoRoutine allows for inserting hooks before launching Go routines
-// GoSerial() allows for running in serial for debugging
+// [GoConcurrent] is the default implementation.
+// [GoSerial] allows for running in serial for debugging
 type GoRoutine func(func())
 
+// The same as [GoN] but with go routine launching configured by a GoRoutine.
 func (gr GoRoutine) GoN(n int, fn func(int) error) []error {
 	errs := make([]error, n)
 	var wg sync.WaitGroup
@@ -59,9 +66,10 @@ func (gr GoRoutine) GoN(n int, fn func(int) error) []error {
 	return errors.Joins(errs...)
 }
 
-// GoEach but with a configurable GoRoutine.
-// GoEach uses generics, so it cannot be called directly as a method.
-// Instead, apply the GoEach arguments first, than apply the GoRoutine to the resulting function.
+// The same as [GoEach] but with go routine launching configured by a GoRoutine.
+//
+// [GoEach] uses generics, so it cannot be called directly as a method.
+// Instead, apply the [GoEach] arguments first, than apply the [GoRoutine] to the resulting function.
 func GoEachRoutine[T any](all []T, work func(T) error) func(gr GoRoutine) []error {
 	return func(gr GoRoutine) []error {
 		return gr.GoN(len(all), func(n int) error {
@@ -71,8 +79,10 @@ func GoEachRoutine[T any](all []T, work func(T) error) func(gr GoRoutine) []erro
 	}
 }
 
-// Merge multiple channels together.
-// From this article: https://go.dev/blog/pipelines
+// ChannelMerge merges multiple channels together.
+// See the article [Go Concurrency Patterns].
+//
+// [Go Concurrency Patterns]: https://go.dev/blog/pipelines
 func ChannelMerge[T any](cs ...<-chan T) <-chan T {
 	var wg sync.WaitGroup
 	out := make(chan T)
@@ -99,7 +109,8 @@ func ChannelMerge[T any](cs ...<-chan T) <-chan T {
 	return out
 }
 
-// try to receive from a channel, return false if nothing received
+// TryRecv preforms a non-blocking receive from a channel.
+// It returns false if nothing received.
 func TryRecv[T any](c <-chan T) (receivedObject T, received bool) {
 	select {
 	case receivedObject = <-c:
@@ -110,7 +121,8 @@ func TryRecv[T any](c <-chan T) (receivedObject T, received bool) {
 	return
 }
 
-// try to send to a channel, return true if sent, false if not
+// TrySend performs a non-blocking send to a channel.
+// It returns true if sent, false if not
 func TrySend[T any](c chan<- T, obj T) bool {
 	select {
 	case c <- obj:
@@ -138,6 +150,7 @@ func (uc UnboundedChan[T]) Drain() []T {
 	return uc.sliceT
 }
 
+// NewUnboundedChan create an UnboundedChan that transfers its contents into an unbounded slice
 func NewUnboundedChan[T any]() UnboundedChan[T] {
 	chanSize := 10
 	uc := UnboundedChan[T]{

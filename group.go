@@ -47,11 +47,14 @@ import (
 
 type token struct{}
 
-// Similar to x/sync/errgroup. Differences:
-// * Wait() will return a slice of all errors encountered.
-// * panics in the functions that are ran are recovered and converted to errors.
-// Must be constructed with NewGroupContext
-type group struct {
+// Group is similar to [x/sync/errgroup].
+// Improvements:
+//   - Wait() will return a slice of all errors encountered.
+//   - panics in the functions that are ran are recovered and converted to errors.
+//   - Go routine launching can be configured with [*Group.SetGoRoutine]
+//
+// Must be constructed with [NewGroupContext]
+type Group struct {
 	errChan   UnboundedChan[error]
 	wg        sync.WaitGroup
 	cancel    func(error)
@@ -59,7 +62,7 @@ type group struct {
 	goRoutine GoRoutine
 }
 
-func (g *group) do(fn func() error) {
+func (g *Group) do(fn func() error) {
 	g.wg.Add(1)
 	go recovery.GoHandler(func(err error) { g.errChan.Send(err) }, func() error {
 		defer g.done()
@@ -71,7 +74,7 @@ func (g *group) do(fn func() error) {
 	})
 }
 
-func (g *group) done() {
+func (g *Group) done() {
 	if g.sem != nil {
 		<-g.sem
 	}
@@ -81,7 +84,7 @@ func (g *group) done() {
 // Wait waits for any outstanding go routines and returns their errors
 // If go routines are started during this Wait,
 // their errors might not show up until the next Wait
-func (g *group) Wait() []error {
+func (g *Group) Wait() []error {
 	g.wg.Wait()
 	prevErrChan := g.errChan
 	g.errChan = NewUnboundedChan[error]()
@@ -92,27 +95,30 @@ func (g *group) Wait() []error {
 	return errors.Joins(errs...)
 }
 
-func NewGroupContext(ctx context.Context) (*group, context.Context) {
+// NewGroupContext constructs a [Group] similar to [x/sync/errgroup] but with aenhancements.
+// See [Group].
+func NewGroupContext(ctx context.Context) (*Group, context.Context) {
 	ctx, cancel := context.WithCancelCause(ctx)
-	return &group{
+	return &Group{
 		cancel:    cancel,
 		errChan:   NewUnboundedChan[error](),
 		goRoutine: GoConcurrent(),
 	}, ctx
 }
 
-func (g *group) SetGoRoutine(gr GoRoutine) {
+// SetGoRoutine allows configuring how go routines are launched
+func (g *Group) SetGoRoutine(gr GoRoutine) {
 	g.goRoutine = gr
 }
 
-func (g *group) Go(fn func() error) {
+func (g *Group) Go(fn func() error) {
 	if g.sem != nil {
 		g.sem <- token{}
 	}
 	g.do(fn)
 }
 
-func (g *group) TryGo(fn func() error) bool {
+func (g *Group) TryGo(fn func() error) bool {
 	if g.sem != nil {
 		select {
 		case g.sem <- token{}:
@@ -125,7 +131,7 @@ func (g *group) TryGo(fn func() error) bool {
 	return true
 }
 
-func (g *group) SetLimit(n int) {
+func (g *Group) SetLimit(n int) {
 	if n < 0 {
 		g.sem = nil
 		return
