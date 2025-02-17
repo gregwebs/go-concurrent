@@ -2,10 +2,10 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
 github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
-github.com/gregwebs/errors v1.14.0 h1:bkCLXmqiH+nNXUZi4+CNmDEUq04y9HQg0kNOtNPMS8E=
-github.com/gregwebs/errors v1.14.0/go.mod h1:1NkCObP7+scylHlC69lwHl2ACOHwktWYrZV4EJDEl6g=
-github.com/gregwebs/go-recovery v0.3.2 h1:vGjQtFXS5lRhDlMlMWCpbm4kQSu2FnZ6ozmxCtCGbJE=
-github.com/gregwebs/go-recovery v0.3.2/go.mod h1:q1/QQy0LZN6bIBT90Bc07Xo2ndJEoTc0k8e0l6BN/xY=
+github.com/gregwebs/go-recovery v0.4.0 h1:aZPu9Ovka7qHwK+xt/bZOtpaGwRW0ra8dyqiuuyJ0j4=
+github.com/gregwebs/go-recovery v0.4.0/go.mod h1:pTiOtRRsvlROffEmTrlpnL6shXjNZflqGibKHpJIW9E=
+github.com/gregwebs/stackfmt v0.1.1 h1:bqHZv69OGARsyNPD4tJfkJnu5oWjA86dISQKKfFt98A=
+github.com/gregwebs/stackfmt v0.1.1/go.mod h1:MQWvus3s9juULflTEiFIllieKiz7AnX7i4HWyPOs2nQ=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/shoenig/test v1.11.0 h1:NoPa5GIoBwuqzIviCrnUJa+t5Xb4xi5Z+zODJnIDsEQ=

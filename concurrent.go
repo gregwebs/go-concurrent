@@ -3,7 +3,6 @@ package concurrent
 import (
 	"sync"
 
-	"github.com/gregwebs/errors"
 	"github.com/gregwebs/go-recovery"
 )
 
@@ -63,7 +62,7 @@ func (gr GoRoutine) GoN(n int, fn func(int) error) []error {
 		})
 	}
 	wg.Wait()
-	return errors.Joins(errs...)
+	return joins(errs...)
 }
 
 // The same as [GoEach] but with go routine launching configured by a GoRoutine.
@@ -167,4 +166,23 @@ func NewUnboundedChan[T any]() UnboundedChan[T] {
 		}
 	}()
 	return uc
+}
+
+func joins(errs ...error) []error {
+	n := 0
+	for _, err := range errs {
+		if err != nil {
+			n++
+		}
+	}
+	if n == 0 {
+		return nil
+	}
+	newErrs := make([]error, 0, n)
+	for _, err := range errs {
+		if err != nil {
+			newErrs = append(newErrs, err)
+		}
+	}
+	return newErrs
 }
