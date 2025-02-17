@@ -38,10 +38,10 @@ package concurrent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
-	"github.com/gregwebs/errors"
 	"github.com/gregwebs/go-recovery"
 )
 
@@ -92,7 +92,7 @@ func (g *Group) Wait() []error {
 	if g.cancel != nil {
 		g.cancel(errors.Join(errs...))
 	}
-	return errors.Joins(errs...)
+	return joins(errs...)
 }
 
 // NewGroupContext constructs a [Group] similar to [x/sync/errgroup] but with aenhancements.
