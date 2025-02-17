@@ -9,4 +9,4 @@ require (
 	github.com/gregwebs/stackfmt v0.1.1 // indirect
 )
 
-go 1.23.3
+go 1.23.6
