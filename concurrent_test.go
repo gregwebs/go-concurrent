@@ -139,18 +139,22 @@ func TestGroup(t *testing.T) {
 	err = group.Wait()
 	must.Nil(t, err)
 
-	tracked := make([]bool, 0, 10)
-	workTracked := func() error { tracked = append(tracked, true); return nil }
+	tracked := concurrent.NewUnboundedChan[bool]()
+	workTracked := func() error { tracked.Send(true); return nil }
 	err = group.Wait()
 	must.Nil(t, err)
-	must.Len(t, 0, tracked)
+	must.Length(t, 0, tracked)
 
-	tracked = make([]bool, 0, 10)
+	tracked = concurrent.NewUnboundedChan[bool]()
 	group.Go(workTracked)
 	group.Go(workTracked)
 	err = group.Wait()
 	must.Nil(t, err)
-	must.Len(t, 2, tracked)
-	must.True(t, tracked[1])
-	must.True(t, tracked[0])
+	must.Length(t, 2, tracked)
+	r, ok := tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
+	r, ok = tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
 }
