@@ -41,8 +41,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-
-	"github.com/gregwebs/go-recovery"
 )
 
 type token struct{}
@@ -65,14 +63,20 @@ type Group struct {
 func (g *Group) do(fn func() error) {
 	g.wg.Add(1)
 	g.goRoutine(func() {
-		go recovery.GoHandler(func(err error) { g.errChan.Send(err) }, func() error {
-			defer g.done()
-			if err := fn(); err != nil {
+		go func() {
+			err := recovered(func() error {
+				defer g.done()
+				if err := fn(); err != nil {
+					g.errChan.Send(err)
+					g.cancel(err)
+				}
+				return nil
+			})
+			if err != nil {
 				g.errChan.Send(err)
 				g.cancel(err)
 			}
-			return nil
-		})
+		}()
 	})
 }
 
@@ -89,9 +93,7 @@ func (g *Group) done() {
 func (g *Group) Wait() []error {
 	g.wg.Wait()
 	errs := g.errChan.Drain()
-	if g.cancel != nil {
-		g.cancel(errors.Join(errs...))
-	}
+	g.cancel(errors.Join(errs...))
 	return joins(errs...)
 }
 

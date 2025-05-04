@@ -1,9 +1,8 @@
 package concurrent
 
 import (
+	"fmt"
 	"sync"
-
-	"github.com/gregwebs/go-recovery"
 )
 
 // GoN runs a function in parallel multiple times using n goroutines.
@@ -54,15 +53,32 @@ func (gr GoRoutine) GoN(n int, fn func(int) error) []error {
 		i := i
 		wg.Add(1)
 		gr(func() {
-			recovery.GoHandler(func(err error) { errs[i] = err }, func() error {
+			err := recovered(func() error {
 				defer wg.Done()
 				errs[i] = fn(i)
 				return nil
 			})
+			if err != nil {
+				errs[i] = err
+			}
 		})
 	}
 	wg.Wait()
 	return joins(errs...)
+}
+
+func recovered(fn func() error) (err error) {
+	defer func() {
+		r := recover()
+		if r != nil {
+			if re, ok := r.(error); ok {
+				err = re
+			} else {
+				err = fmt.Errorf("panic: %v", r)
+			}
+		}
+	}()
+	return fn()
 }
 
 // The same as [GoEach] but with go routine launching configured by a GoRoutine.
