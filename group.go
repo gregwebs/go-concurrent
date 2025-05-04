@@ -95,7 +95,7 @@ func (g *Group) Wait() []error {
 	return joins(errs...)
 }
 
-// NewGroupContext constructs a [Group] similar to [x/sync/errgroup] but with aenhancements.
+// NewGroupContext constructs a [Group] similar to [x/sync/errgroup] but with enhancements.
 // See [Group].
 func NewGroupContext(ctx context.Context) (*Group, context.Context) {
 	ctx, cancel := context.WithCancelCause(ctx)

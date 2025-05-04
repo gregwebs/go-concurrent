@@ -2,13 +2,14 @@ package concurrent
 
 import "sync"
 
-// UnboundedChan presents a channel like API with Send and Recv
+// UnboundedChan presents a channel-like API with Send and Recv methods.
 // It also provides a Drain function to retrieve all data at once.
 type UnboundedChan[T any] struct {
 	sliceT []T
 	m      *sync.Mutex
 }
 
+// Send is non-blocking
 func (uc *UnboundedChan[T]) Send(x T) {
 	uc.m.Lock()
 	defer uc.m.Unlock()
@@ -31,6 +32,7 @@ func (uc *UnboundedChan[T]) Recv() (T, bool) {
 	return data, true
 }
 
+// Retrieve all data at once
 func (uc *UnboundedChan[T]) Drain() []T {
 	uc.m.Lock()
 	defer uc.m.Unlock()
@@ -50,7 +52,7 @@ func (uc UnboundedChan[T]) Len() int {
 	return len(uc.sliceT)
 }
 
-// NewUnboundedChan create an UnboundedChan that transfers its contents into an unbounded slice
+// NewUnboundedChan create an [UnboundedChan].
 func NewUnboundedChan[T any]() UnboundedChan[T] {
 	chanSize := 100
 	uc := UnboundedChan[T]{
