@@ -64,13 +64,15 @@ type Group struct {
 
 func (g *Group) do(fn func() error) {
 	g.wg.Add(1)
-	go recovery.GoHandler(func(err error) { g.errChan.Send(err) }, func() error {
-		defer g.done()
-		if err := fn(); err != nil {
-			g.errChan.Send(err)
-			g.cancel(err)
-		}
-		return nil
+	g.goRoutine(func() {
+		go recovery.GoHandler(func(err error) { g.errChan.Send(err) }, func() error {
+			defer g.done()
+			if err := fn(); err != nil {
+				g.errChan.Send(err)
+				g.cancel(err)
+			}
+			return nil
+		})
 	})
 }
 
@@ -86,9 +88,7 @@ func (g *Group) done() {
 // their errors might not show up until the next Wait
 func (g *Group) Wait() []error {
 	g.wg.Wait()
-	prevErrChan := g.errChan
-	g.errChan = NewUnboundedChan[error]()
-	errs := prevErrChan.Drain()
+	errs := g.errChan.Drain()
 	if g.cancel != nil {
 		g.cancel(errors.Join(errs...))
 	}
