@@ -17,18 +17,22 @@ func TestGoN(t *testing.T) {
 	err = concurrent.GoN(2, workNone)
 	must.Nil(t, err)
 
-	tracked := make([]bool, 10)
-	workTracked := func(i int) error { tracked[i] = true; return nil }
+	tracked := concurrent.NewUnboundedChan[bool]()
+	workTracked := func(i int) error { tracked.Send(true); return nil }
 	err = concurrent.GoN(0, workTracked)
 	must.Nil(t, err)
-	must.False(t, tracked[0])
+	must.Length(t, 0, tracked)
 
-	tracked = make([]bool, 10)
+	tracked = concurrent.NewUnboundedChan[bool]()
 	err = concurrent.GoN(2, workTracked)
 	must.Nil(t, err)
-	must.False(t, tracked[2])
-	must.True(t, tracked[1])
-	must.True(t, tracked[0])
+	must.Length(t, 2, tracked)
+	r, ok := tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
+	r, ok = tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
 }
 
 func TestGoNSerials(t *testing.T) {
@@ -40,61 +44,75 @@ func TestGoNSerials(t *testing.T) {
 	err = gr.GoN(2, workNone)
 	must.Nil(t, err)
 
-	tracked := make([]bool, 10)
-	workTracked := func(i int) error { tracked[i] = true; return nil }
+	tracked := concurrent.NewUnboundedChan[bool]()
+	workTracked := func(i int) error { tracked.Send(true); return nil }
 	err = gr.GoN(0, workTracked)
 	must.Nil(t, err)
-	must.False(t, tracked[0])
+	must.Length(t, 0, tracked)
 
-	tracked = make([]bool, 10)
+	tracked = concurrent.NewUnboundedChan[bool]()
 	err = gr.GoN(2, workTracked)
 	must.Nil(t, err)
-	must.False(t, tracked[2])
-	must.True(t, tracked[1])
-	must.True(t, tracked[0])
+	must.Length(t, 2, tracked)
+	r, ok := tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
+	r, ok = tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
 }
 
 func TestGoEach(t *testing.T) {
 	var err []error
-	tracked := make([]bool, 10)
+	items := make([]bool, 10)
 	workNone := func(_ bool) error { return nil }
-	err = concurrent.GoEach(tracked, workNone)
+	err = concurrent.GoEach(items, workNone)
 	must.Nil(t, err)
 
-	workTracked := func(_ bool) error { tracked[0] = true; return nil }
-	err = concurrent.GoEach(tracked, workTracked)
+	tracked := concurrent.NewUnboundedChan[bool]()
+	workTracked := func(_ bool) error { tracked.Send(true); return nil }
+	err = concurrent.GoEach(items, workTracked)
 	must.Nil(t, err)
-	must.False(t, tracked[1])
-	must.True(t, tracked[0])
+	must.Length(t, 10, tracked)
+	r, ok := tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
 
-	workTracked = func(_ bool) error { tracked[1] = true; return nil }
-	err = concurrent.GoEach(tracked, workTracked)
+	tracked = concurrent.NewUnboundedChan[bool]()
+	workTracked = func(_ bool) error { tracked.Send(true); return nil }
+	err = concurrent.GoEach(items, workTracked)
 	must.Nil(t, err)
-	must.False(t, tracked[2])
-	must.True(t, tracked[1])
-	must.True(t, tracked[0])
+	must.Length(t, 10, tracked)
+	r, ok = tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
 }
 
 func TestGoEachSerial(t *testing.T) {
 	var err []error
-	tracked := make([]bool, 10)
+	items := make([]bool, 10)
 	workNone := func(_ bool) error { return nil }
 	gr := concurrent.GoSerial()
-	err = concurrent.GoEachRoutine(tracked, workNone)(gr)
+	err = concurrent.GoEachRoutine(items, workNone)(gr)
 	must.Nil(t, err)
 
-	workTracked := func(_ bool) error { tracked[0] = true; return nil }
-	err = concurrent.GoEachRoutine(tracked, workTracked)(gr)
+	tracked := concurrent.NewUnboundedChan[bool]()
+	workTracked := func(_ bool) error { tracked.Send(true); return nil }
+	err = concurrent.GoEachRoutine(items, workTracked)(gr)
 	must.Nil(t, err)
-	must.False(t, tracked[1])
-	must.True(t, tracked[0])
+	must.Length(t, 10, tracked)
+	r, ok := tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
 
-	workTracked = func(_ bool) error { tracked[1] = true; return nil }
-	err = concurrent.GoEachRoutine(tracked, workTracked)(gr)
+	tracked = concurrent.NewUnboundedChan[bool]()
+	workTracked = func(_ bool) error { tracked.Send(true); return nil }
+	err = concurrent.GoEachRoutine(items, workTracked)(gr)
 	must.Nil(t, err)
-	must.False(t, tracked[2])
-	must.True(t, tracked[1])
-	must.True(t, tracked[0])
+	must.Length(t, 10, tracked)
+	r, ok = tracked.Recv()
+	must.True(t, ok)
+	must.True(t, r)
 }
 
 func TestChannelMerge(t *testing.T) {
