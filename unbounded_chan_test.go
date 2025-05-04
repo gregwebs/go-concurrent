@@ -12,14 +12,14 @@ import (
 func TestNewUnboundedChan(t *testing.T) {
 	uc := concurrent.NewUnboundedChan[int]()
 	var zero int
-	
+
 	// Add a value and verify it persists
 	uc.Send(42)
-	
+
 	value, ok := uc.Recv()
 	must.True(t, ok)
 	must.Eq(t, 42, value)
-	
+
 	// Test empty state after receiving the value
 	value, ok = uc.Recv()
 	must.False(t, ok)
@@ -94,10 +94,10 @@ func TestUnboundedChanRace(t *testing.T) {
 	uc := concurrent.NewUnboundedChan[int]()
 	const numGoroutines = 5
 	const numOperations = 20
-	
+
 	var wg sync.WaitGroup
 	wg.Add(numGoroutines * 2) // Half sending, half receiving
-	
+
 	// Start senders
 	for i := 0; i < numGoroutines; i++ {
 		go func(id int) {
@@ -108,10 +108,10 @@ func TestUnboundedChanRace(t *testing.T) {
 			}
 		}(i)
 	}
-	
+
 	// Track received values
 	receivedValues := concurrent.NewUnboundedChan[int]()
-	
+
 	// Start receivers
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
@@ -128,18 +128,16 @@ func TestUnboundedChanRace(t *testing.T) {
 			}
 		}()
 	}
-	
+
 	// Wait for all goroutines to finish
 	wg.Wait()
-	
+
 	// Drain any remaining items
 	remaining := uc.Drain()
-	if remaining != nil {
-		for _, v := range remaining {
-			receivedValues.Send(v)
-		}
+	for _, v := range remaining {
+		receivedValues.Send(v)
 	}
-	
+
 	// We should have received at least some values
 	// We can't guarantee exactly how many due to the concurrent nature
 	must.True(t, len(receivedValues.Drain()) > 0)
