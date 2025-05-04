@@ -53,19 +53,20 @@ func TestZeroGroup(t *testing.T) {
 
 	cases := []struct {
 		errs []error
+		name string
 	}{
-		{errs: []error{}},
-		{errs: []error{nil}},
-		{errs: []error{err1}},
-		{errs: []error{err1, nil}},
-		{errs: []error{err1, nil, err2}},
+		{errs: []error{}, name: "empty"},
+		{errs: []error{nil}, name: "nil"},
+		{errs: []error{err1}, name: "single error"},
+		{errs: []error{err1, nil}, name: "error and nil"},
+		{errs: []error{err1, nil, err2}, name: "error, nil, error"},
 	}
 
 	for _, tc := range cases {
 		g, _ := concurrent.NewGroupContext(context.Background())
 
 		var firstErr error
-		for i, err := range tc.errs {
+		for _, err := range tc.errs {
 			err := err
 			g.Go(func() error { return err })
 
@@ -74,10 +75,10 @@ func TestZeroGroup(t *testing.T) {
 			}
 
 			gErr := g.Wait()
-			if len(gErr) > 0 && gErr[0] != firstErr {
-				t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
+			if len(gErr) > 0 && gErr[0] != err {
+				t.Errorf(tc.name+": after %T.Go(func() error { return err }) for err in %v\n"+
 					"g.Wait() = %v; want %v",
-					g, tc.errs[:i+1], err, firstErr)
+					g, tc.errs, gErr, err)
 			}
 		}
 	}
