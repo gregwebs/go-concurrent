@@ -40,6 +40,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -97,10 +98,7 @@ func TestZeroGroup(t *testing.T) {
 		{
 			gweErr := g.WaitOrError()
 			var nonNilErr error
-			if len(nonNilErrs) > 0 {
-				nonNilErr = nonNilErrs[0]
-			}
-			if gweErr != nonNilErr {
+			if !((gweErr == nil && len(nonNilErrs) == 0) || slices.Contains(nonNilErrs, gweErr)) {
 				t.Errorf(tc.name+": after %T.Go(func() error { return err }) for err in %v\n"+
 					"g.WaitOrError() = %v; want %v",
 					gwe, tc.errs, gweErr, nonNilErr)
