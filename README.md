@@ -9,7 +9,7 @@ For full documentation see the [GoDoc](https://pkg.go.dev/github.com/gregwebs/go
 * GoN - run N go routines concurrently
 * GoEach - run a go routine for each array element
 * Group - Similar to x/sync/errgroup but
-  * catches panics
+  * catches panics (can be disabled)
   * by default returns all errors
   * can fail fast and return the first error without waiting for all go routines to complete
 
@@ -18,6 +18,10 @@ See:
 
 * GoSerial - running in serial for debugging
 * GoRoutine - create your own go routine launcher
+  * SetWrapFn(nil) - disable panic catching
+  * SetGo(func(func())) - add hooks to go routine launching
+  * LaunchGoRoutine(func(func())) - launch a go routine with configured hooks
+
 * GoRoutine.GoN(...)
 * GoEachRoutine(...)(GoRoutine)
 * Group.SetGoRoutine(GoRoutine)
