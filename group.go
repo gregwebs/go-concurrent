@@ -53,28 +53,27 @@ type token struct{}
 //
 // Must be constructed with [NewGroupContext]
 type Group struct {
-	errChan   UnboundedChan[error]
-	wg        sync.WaitGroup
-	cancel    func(error)
-	limiter   chan token
-	goRoutine GoRoutine
+	errChan    UnboundedChan[error]
+	wg         sync.WaitGroup
+	cancel     func(error)
+	limiter    chan token
+	goRoutine  GoRoutine
+	firstError chan error
 }
 
 func (g *Group) do(fn func() error) {
 	g.wg.Add(1)
 	g.goRoutine(func() {
 		go func() {
+			defer g.done()
 			err := recovered(func() error {
-				defer g.done()
 				if err := fn(); err != nil {
-					g.errChan.Send(err)
-					g.cancel(err)
+					g.error(err)
 				}
 				return nil
 			})
 			if err != nil {
-				g.errChan.Send(err)
-				g.cancel(err)
+				g.error(err)
 			}
 		}()
 	})
@@ -85,6 +84,50 @@ func (g *Group) done() {
 		<-g.limiter
 	}
 	g.wg.Done()
+}
+
+func (g *Group) error(err error) {
+	if err == nil {
+		return
+	}
+	g.errChan.Send(err)
+	g.cancel(err)
+	if g.firstError == nil {
+		g.firstError = make(chan error, 1)
+	}
+	TrySend(g.firstError, err)
+}
+
+// WaitOrError will wait until any go routine returns an error.
+// If the error returned is nil then all go routines have completed without error.
+// Once a go routine returns an error, that will be returned here as a non-nil error.
+// If an error is returned, the caller can call 'Wait' to wait for all go routines to complete.
+func (g *Group) WaitOrError() error {
+	if g.firstError == nil {
+		g.firstError = make(chan error, 1)
+	}
+	if err, received := g.errChan.Recv(); received {
+		return err
+	}
+
+	completed := make(chan []error)
+	go func() {
+		completed <- g.Wait()
+	}()
+
+	select {
+	case err := <-g.firstError:
+		return err
+	case errs := <-completed:
+		// Favor firstError over completed: it should have the first error
+		if err, received := TryRecv(g.firstError); received {
+			return err
+		}
+		if len(errs) > 0 {
+			return errs[0]
+		}
+		return nil
+	}
 }
 
 // Wait waits for any outstanding go routines and returns their errors
