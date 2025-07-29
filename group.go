@@ -56,7 +56,7 @@ type Group struct {
 	errChan   UnboundedChan[error]
 	wg        sync.WaitGroup
 	cancel    func(error)
-	sem       chan token
+	limiter   chan token
 	goRoutine GoRoutine
 }
 
@@ -81,8 +81,8 @@ func (g *Group) do(fn func() error) {
 }
 
 func (g *Group) done() {
-	if g.sem != nil {
-		<-g.sem
+	if g.limiter != nil {
+		<-g.limiter
 	}
 	g.wg.Done()
 }
@@ -114,16 +114,16 @@ func (g *Group) SetGoRoutine(gr GoRoutine) {
 }
 
 func (g *Group) Go(fn func() error) {
-	if g.sem != nil {
-		g.sem <- token{}
+	if g.limiter != nil {
+		g.limiter <- token{}
 	}
 	g.do(fn)
 }
 
 func (g *Group) TryGo(fn func() error) bool {
-	if g.sem != nil {
+	if g.limiter != nil {
 		select {
-		case g.sem <- token{}:
+		case g.limiter <- token{}:
 			// Note: this allows barging iff channels in general allow barging.
 		default:
 			return false
@@ -135,11 +135,11 @@ func (g *Group) TryGo(fn func() error) bool {
 
 func (g *Group) SetLimit(n int) {
 	if n < 0 {
-		g.sem = nil
+		g.limiter = nil
 		return
 	}
-	if len(g.sem) != 0 {
-		panic(fmt.Errorf("errgroup: modify limit while %v goroutines in the group are still active", len(g.sem)))
+	if len(g.limiter) != 0 {
+		panic(fmt.Errorf("errgroup: modify limit while %v goroutines in the group are still active", len(g.limiter)))
 	}
-	g.sem = make(chan token, n)
+	g.limiter = make(chan token, n)
 }
