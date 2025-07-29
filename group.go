@@ -97,10 +97,10 @@ func (g *Group) error(err error) {
 	TrySend(g.firstError, err)
 }
 
-// WaitOrError will wait until any go routine returns an error.
-// If the error returned is nil then all go routines have completed without error.
+// WaitOrError will wait until an error is returned from a go routine.
 // Once a go routine returns an error, that will be returned here as a non-nil error.
-// If an error is returned, the caller can call 'Wait' to wait for all go routines to complete.
+// If no go routines return errors, the error returned here will be nil.
+// If an error is returned, the caller can still call 'Wait' to wait for all go routines to complete.
 func (g *Group) WaitOrError() error {
 	var err error
 	defer func() { g.cancel(err) }()
@@ -122,7 +122,7 @@ func (g *Group) WaitOrError() error {
 		case err := <-g.firstError:
 			return err
 		case <-completed:
-			// Favor firstError over completed: it should have the first error
+			// Favor firstError over completed
 			if err, received := TryRecv(g.firstError); received {
 				return err
 			}
@@ -136,9 +136,7 @@ func (g *Group) WaitOrError() error {
 	return err
 }
 
-// Wait waits for any outstanding go routines and returns their errors
-// If go routines are started during this Wait,
-// their errors might not show up until the next Wait
+// Wait waits for any outstanding go routines and returns their errors.
 func (g *Group) Wait() []error {
 	var errs []error
 	defer func() { g.cancel(errors.Join(errs...)) }()
