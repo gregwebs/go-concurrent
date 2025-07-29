@@ -63,65 +63,48 @@ func TestZeroGroup(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		g, _ := concurrent.NewGroupContext(context.Background())
+		g, ctx := concurrent.NewGroupContext(context.Background())
+		gwe, _ := concurrent.NewGroupContext(context.Background())
 
-		var firstErr error
 		for _, err := range tc.errs {
 			err := err
 			g.Go(func() error { return err })
+			gwe.Go(func() error { return err })
+		}
 
-			if firstErr == nil && err != nil {
-				firstErr = err
-			}
-
+		nonNilErrs := joins(tc.errs...)
+		{
 			gErr := g.Wait()
-			if len(gErr) > 0 && gErr[0] != err {
+			if len(gErr) != len(nonNilErrs) {
 				t.Errorf(tc.name+": after %T.Go(func() error { return err }) for err in %v\n"+
 					"g.Wait() = %v; want %v",
-					g, tc.errs, gErr, err)
+					g, tc.errs, gErr, nonNilErrs)
+			}
+
+			canceled := false
+			select {
+			case <-ctx.Done():
+				canceled = true
+			default:
+			}
+			if !canceled {
+				t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
+					"ctx.Done() was not closed",
+					g, tc.errs)
 			}
 		}
-	}
-}
 
-func TestWithContext(t *testing.T) {
-	errDoom := errors.New("group_test: doomed")
-
-	cases := []struct {
-		errs []error
-		want error
-	}{
-		{want: nil},
-		{errs: []error{nil}, want: nil},
-		{errs: []error{errDoom}, want: errDoom},
-		{errs: []error{errDoom, nil}, want: errDoom},
-	}
-
-	for _, tc := range cases {
-		g, ctx := concurrent.NewGroupContext(context.Background())
-
-		for _, err := range tc.errs {
-			err := err
-			g.Go(func() error { return err })
-		}
-
-		err := g.Wait()
-		if len(err) > 0 && err[0] != tc.want {
-			t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
-				"g.Wait() = %v; want %v",
-				g, tc.errs, err, tc.want)
-		}
-
-		canceled := false
-		select {
-		case <-ctx.Done():
-			canceled = true
-		default:
-		}
-		if !canceled {
-			t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
-				"ctx.Done() was not closed",
-				g, tc.errs)
+		{
+			gweErr := g.WaitOrError()
+			var nonNilErr error
+			if len(nonNilErrs) > 0 {
+				nonNilErr = nonNilErrs[0]
+			}
+			if gweErr != nonNilErr {
+				t.Errorf(tc.name+": after %T.Go(func() error { return err }) for err in %v\n"+
+					"g.WaitOrError() = %v; want %v",
+					gwe, tc.errs, gweErr, nonNilErr)
+			}
 		}
 	}
 }
@@ -208,4 +191,23 @@ func BenchmarkGo(b *testing.B) {
 		g.Go(func() error { fn(); return nil })
 	}
 	g.Wait()
+}
+
+func joins(errs ...error) []error {
+	n := 0
+	for _, err := range errs {
+		if err != nil {
+			n++
+		}
+	}
+	if n == 0 {
+		return nil
+	}
+	newErrs := make([]error, 0, n)
+	for _, err := range errs {
+		if err != nil {
+			newErrs = append(newErrs, err)
+		}
+	}
+	return newErrs
 }

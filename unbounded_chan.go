@@ -3,6 +3,7 @@ package concurrent
 import "sync"
 
 // UnboundedChan presents a channel-like API with Send and Recv methods.
+// The Send and Recv methods are non-blocking.
 // It also provides a Drain function to retrieve all data at once.
 type UnboundedChan[T any] struct {
 	sliceT []T

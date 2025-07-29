@@ -8,7 +8,10 @@ For full documentation see the [GoDoc](https://pkg.go.dev/github.com/gregwebs/go
 
 * GoN - run N go routines concurrently
 * GoEach - run a go routine for each array element
-* Group - Similar to x/sync/errgroup but catches panics and returns all errors
+* Group - Similar to x/sync/errgroup but
+  * catches panics
+  * by default returns all errors
+  * can fail fast and return the first error without waiting for all go routines to complete
 
 It is possible to instrument how the go routines are launched or launch them in serial for debugging.
 See:
