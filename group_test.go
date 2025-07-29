@@ -63,7 +63,7 @@ func TestZeroGroup(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		g, _ := concurrent.NewGroupContext(context.Background())
+		g, ctx := concurrent.NewGroupContext(context.Background())
 		gwe, _ := concurrent.NewGroupContext(context.Background())
 
 		for _, err := range tc.errs {
@@ -80,6 +80,18 @@ func TestZeroGroup(t *testing.T) {
 					"g.Wait() = %v; want %v",
 					g, tc.errs, gErr, nonNilErrs)
 			}
+
+			canceled := false
+			select {
+			case <-ctx.Done():
+				canceled = true
+			default:
+			}
+			if !canceled {
+				t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
+					"ctx.Done() was not closed",
+					g, tc.errs)
+			}
 		}
 
 		{
@@ -93,48 +105,6 @@ func TestZeroGroup(t *testing.T) {
 					"g.WaitOrError() = %v; want %v",
 					gwe, tc.errs, gweErr, nonNilErr)
 			}
-		}
-	}
-}
-
-func TestWithContext(t *testing.T) {
-	errDoom := errors.New("group_test: doomed")
-
-	cases := []struct {
-		errs []error
-		want error
-	}{
-		{want: nil},
-		{errs: []error{nil}, want: nil},
-		{errs: []error{errDoom}, want: errDoom},
-		{errs: []error{errDoom, nil}, want: errDoom},
-	}
-
-	for _, tc := range cases {
-		g, ctx := concurrent.NewGroupContext(context.Background())
-
-		for _, err := range tc.errs {
-			err := err
-			g.Go(func() error { return err })
-		}
-
-		err := g.Wait()
-		if len(err) > 0 && err[0] != tc.want {
-			t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
-				"g.Wait() = %v; want %v",
-				g, tc.errs, err, tc.want)
-		}
-
-		canceled := false
-		select {
-		case <-ctx.Done():
-			canceled = true
-		default:
-		}
-		if !canceled {
-			t.Errorf("after %T.Go(func() error { return err }) for err in %v\n"+
-				"ctx.Done() was not closed",
-				g, tc.errs)
 		}
 	}
 }

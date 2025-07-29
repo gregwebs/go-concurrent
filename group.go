@@ -91,7 +91,6 @@ func (g *Group) error(err error) {
 		return
 	}
 	g.errChan.Send(err)
-	g.cancel(err)
 	if g.firstError == nil {
 		g.firstError = make(chan error, 1)
 	}
@@ -103,40 +102,48 @@ func (g *Group) error(err error) {
 // Once a go routine returns an error, that will be returned here as a non-nil error.
 // If an error is returned, the caller can call 'Wait' to wait for all go routines to complete.
 func (g *Group) WaitOrError() error {
-	if g.firstError == nil {
-		g.firstError = make(chan error, 1)
-	}
-	if err, received := g.errChan.Recv(); received {
-		return err
-	}
-
-	completed := make(chan []error)
-	go func() {
-		completed <- g.Wait()
-	}()
-
-	select {
-	case err := <-g.firstError:
-		return err
-	case errs := <-completed:
-		// Favor firstError over completed: it should have the first error
-		if err, received := TryRecv(g.firstError); received {
+	var err error
+	defer func() { g.cancel(err) }()
+	err = func() error {
+		if g.firstError == nil {
+			g.firstError = make(chan error, 1)
+		}
+		if err, received := g.errChan.Recv(); received {
 			return err
 		}
-		if len(errs) > 0 {
-			return errs[0]
+
+		completed := make(chan token)
+		go func() {
+			g.wg.Wait()
+			completed <- token{}
+		}()
+
+		select {
+		case err := <-g.firstError:
+			return err
+		case <-completed:
+			// Favor firstError over completed: it should have the first error
+			if err, received := TryRecv(g.firstError); received {
+				return err
+			}
+
+			if errs := g.errChan.Drain(); len(errs) > 0 {
+				return errs[0]
+			}
+			return nil
 		}
-		return nil
-	}
+	}()
+	return err
 }
 
 // Wait waits for any outstanding go routines and returns their errors
 // If go routines are started during this Wait,
 // their errors might not show up until the next Wait
 func (g *Group) Wait() []error {
+	var errs []error
+	defer func() { g.cancel(errors.Join(errs...)) }()
 	g.wg.Wait()
-	errs := g.errChan.Drain()
-	g.cancel(errors.Join(errs...))
+	errs = g.errChan.Drain()
 	return joins(errs...)
 }
 
