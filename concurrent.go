@@ -128,10 +128,8 @@ func ChannelMerge[T any](cs ...<-chan T) <-chan T {
 // It returns false if nothing received.
 func TryRecv[T any](c <-chan T) (receivedObject T, received bool) {
 	select {
-	case receivedObject = <-c:
-		received = true
+	case receivedObject, received = <-c:
 	default:
-		received = false
 	}
 	return
 }

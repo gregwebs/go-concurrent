@@ -53,7 +53,7 @@ type token struct{}
 //
 // Must be constructed with [NewGroupContext]
 type Group struct {
-	errChan    UnboundedChan[error]
+	errChan    slice[error]
 	wg         sync.WaitGroup
 	cancel     func(error)
 	limiter    chan token
@@ -90,7 +90,7 @@ func (g *Group) error(err error) {
 	if err == nil {
 		return
 	}
-	g.errChan.Send(err)
+	g.errChan.Append(err)
 	if g.firstError == nil {
 		g.firstError = make(chan error, 1)
 	}
@@ -108,7 +108,9 @@ func (g *Group) WaitOrError() error {
 		if g.firstError == nil {
 			g.firstError = make(chan error, 1)
 		}
-		if err, received := g.errChan.Recv(); received {
+
+		err, received := g.errChan.Shift()
+		if received {
 			return err
 		}
 
@@ -127,7 +129,7 @@ func (g *Group) WaitOrError() error {
 				return err
 			}
 
-			if errs := g.errChan.Drain(); len(errs) > 0 {
+			if errs := g.errChan.TakeAll(); len(errs) > 0 {
 				return errs[0]
 			}
 			return nil
@@ -141,7 +143,7 @@ func (g *Group) Wait() []error {
 	var errs []error
 	defer func() { g.cancel(errors.Join(errs...)) }()
 	g.wg.Wait()
-	errs = g.errChan.Drain()
+	errs = g.errChan.TakeAll()
 	return joins(errs...)
 }
 
@@ -151,7 +153,7 @@ func NewGroupContext(ctx context.Context) (*Group, context.Context) {
 	ctx, cancel := context.WithCancelCause(ctx)
 	return &Group{
 		cancel:    cancel,
-		errChan:   NewUnboundedChan[error](),
+		errChan:   NewSlice[error](),
 		goRoutine: GoConcurrent(),
 	}, ctx
 }
