@@ -37,7 +37,7 @@ func TestGoN(t *testing.T) {
 
 func TestGoNSerials(t *testing.T) {
 	var err []error
-	gr := concurrent.GoSerial()
+	gr := concurrent.GoRoutine{}.Serial()
 	workNone := func(_ int) error { return nil }
 	err = gr.GoN(0, workNone)
 	must.Nil(t, err)
@@ -92,7 +92,7 @@ func TestGoEachSerial(t *testing.T) {
 	var err []error
 	items := make([]bool, 10)
 	workNone := func(_ bool) error { return nil }
-	gr := concurrent.GoSerial()
+	gr := concurrent.GoRoutine{}.Serial()
 	err = concurrent.GoEachRoutine(items, workNone)(gr)
 	must.Nil(t, err)
 

@@ -13,14 +13,13 @@ For full documentation see the [GoDoc](https://pkg.go.dev/github.com/gregwebs/go
   * by default returns all errors
   * can fail fast and return the first error without waiting for all go routines to complete
 
-It is possible to instrument how the go routines are launched or launch them in serial for debugging.
+It is possible to instrument how the go routines are launched and panics are handled.
 See:
 
-* GoSerial - running in serial for debugging
 * GoRoutine - create your own go routine launcher
-  * SetWrapFn(nil) - disable panic catching
-  * SetGo(func(func())) - add hooks to go routine launching
-  * LaunchGoRoutine(func(func())) - launch a go routine with configured hooks
+  * Serial() - running in serial for debugging
+  * RaisePanics() - raise panics rather than trapping them
+  * GoErrHandler(errHandler func(error), work func() error) - launch a go routine with a configured error handler
 
 * GoRoutine.GoN(...)
 * GoEachRoutine(...)(GoRoutine)
@@ -28,7 +27,5 @@ See:
 
 ## General concurrency helpers exposed
 
-* UnboundedChan
-* ChannelMerge
 * TrySend
 * TryRecv

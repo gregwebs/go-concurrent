@@ -63,17 +63,9 @@ type Group struct {
 
 func (g *Group) do(fn func() error) {
 	g.wg.Add(1)
-	g.goRoutine.LaunchGoRoutine(func() {
+	g.goRoutine.GoErrHandler(g.error, func() error {
 		defer g.done()
-		err := g.goRoutine.WrapFn(func() error {
-			if err := fn(); err != nil {
-				g.error(err)
-			}
-			return nil
-		})
-		if err != nil {
-			g.error(err)
-		}
+		return fn()
 	})
 }
 
@@ -152,7 +144,7 @@ func NewGroupContext(ctx context.Context) (*Group, context.Context) {
 	return &Group{
 		cancel:    cancel,
 		errChan:   NewSlice[error](),
-		goRoutine: GoConcurrent(),
+		goRoutine: GoRoutine{},
 	}, ctx
 }
 
