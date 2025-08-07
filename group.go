@@ -53,27 +53,19 @@ type token struct{}
 //
 // Must be constructed with [NewGroupContext]
 type Group struct {
-	errChan    slice[error]
 	wg         sync.WaitGroup
 	cancel     func(error)
 	limiter    chan token
-	goRoutine  GoRoutine
 	firstError chan error
+	errChan    slice[error]
+	goRoutine  GoRoutine
 }
 
 func (g *Group) do(fn func() error) {
 	g.wg.Add(1)
-	g.goRoutine(func() {
+	g.goRoutine.GoErrHandler(g.error, func() error {
 		defer g.done()
-		err := recovered(func() error {
-			if err := fn(); err != nil {
-				g.error(err)
-			}
-			return nil
-		})
-		if err != nil {
-			g.error(err)
-		}
+		return fn()
 	})
 }
 
@@ -152,7 +144,7 @@ func NewGroupContext(ctx context.Context) (*Group, context.Context) {
 	return &Group{
 		cancel:    cancel,
 		errChan:   NewSlice[error](),
-		goRoutine: GoConcurrent(),
+		goRoutine: GoRoutine{},
 	}, ctx
 }
 

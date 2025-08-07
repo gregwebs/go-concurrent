@@ -12,7 +12,7 @@ import (
 //
 // Use [errors.Join] to combine the individual errors into a single error.
 func GoN(n int, fn func(int) error) []error {
-	return GoConcurrent().GoN(n, fn)
+	return GoRoutine{}.GoN(n, fn)
 }
 
 // GoEach runs a go routine for each item in an Array.
@@ -29,38 +29,78 @@ func GoEach[T any](all []T, fn func(T) error) []error {
 	})
 }
 
-// [GoConcurrent] is the default implementation for launching a routine.
-// It just uses the `go` keyword.
-func GoConcurrent() GoRoutine {
-	return GoRoutine(func(work func()) { go work() })
+var justGo = func(work func()) { go work() }
+
+// GoRoutine allows for inserting hooks before launching Go routines.
+// and for specifying whether to raise panics- the default is to trap panics.
+// The zero value is valid and will have
+// * concurrent launching with the go keyword
+// * panics trapped
+type GoRoutine struct {
+	goRoutine   func(func())
+	raisePanics bool
 }
 
-// [GoSerial] allows for running in serial for debugging
-func GoSerial() GoRoutine {
-	return GoRoutine(func(work func()) { work() })
+// By default panics are trapped, this will instead raise panics
+func (gr GoRoutine) RaisePanics() GoRoutine {
+	gr.raisePanics = true
+	return gr
 }
 
-// GoRoutine allows for inserting hooks before launching Go routines
-// [GoConcurrent] is the default implementation.
-// [GoSerial] allows for running in serial for debugging
-type GoRoutine func(func())
+// [Serial] allows for running routines in serial for debugging
+func (gr GoRoutine) Serial() GoRoutine {
+	gr.goRoutine = func(work func()) { work() }
+	return gr
+}
+
+func (gr GoRoutine) GoErrHandler(errHandler func(error), work func() error) {
+	gr.launchGoRoutine(func() {
+		if err := gr.wrapFn(work); err != nil {
+			errHandler(err)
+		}
+	})
+}
+
+// SetGo allows for inserting hooks around go routine launching
+// The function given is responsible for invoking the `go` keyword.
+func (gr GoRoutine) SetGo(fn func(func())) GoRoutine {
+	if fn == nil {
+		return gr
+	}
+	gr.goRoutine = fn
+	return gr
+}
+
+func (gr GoRoutine) launchGoRoutine(fn func()) {
+	if gr.goRoutine == nil {
+		justGo(fn)
+	} else {
+		gr.goRoutine(fn)
+	}
+}
+
+func (gr GoRoutine) wrapFn(fn func() error) error {
+	if gr.raisePanics {
+		return fn()
+	}
+	return recovered(fn)
+}
 
 // The same as [GoN] but with go routine launching configured by a GoRoutine.
 func (gr GoRoutine) GoN(n int, fn func(int) error) []error {
 	errs := make([]error, n)
+	errHandler := func(i int) func(error) {
+		return func(err error) {
+			errs[i] = err
+		}
+	}
 	var wg sync.WaitGroup
 	for i := 0; i < n; i++ {
 		i := i
 		wg.Add(1)
-		gr(func() {
-			err := recovered(func() error {
-				defer wg.Done()
-				errs[i] = fn(i)
-				return nil
-			})
-			if err != nil {
-				errs[i] = err
-			}
+		gr.GoErrHandler(errHandler(i), func() error {
+			defer wg.Done()
+			return fn(i)
 		})
 	}
 	wg.Wait()
