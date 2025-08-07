@@ -64,18 +64,16 @@ type Group struct {
 func (g *Group) do(fn func() error) {
 	g.wg.Add(1)
 	g.goRoutine(func() {
-		go func() {
-			defer g.done()
-			err := recovered(func() error {
-				if err := fn(); err != nil {
-					g.error(err)
-				}
-				return nil
-			})
-			if err != nil {
+		defer g.done()
+		err := recovered(func() error {
+			if err := fn(); err != nil {
 				g.error(err)
 			}
-		}()
+			return nil
+		})
+		if err != nil {
+			g.error(err)
+		}
 	})
 }
 
